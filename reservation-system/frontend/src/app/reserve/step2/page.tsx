@@ -1,18 +1,28 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useReservation } from '@/contexts/ReservationContext';
 
 export default function ReserveStep2Page() {
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    furigana: '',
-    gender: '',
-    birthdate: '',
-    age: '',
-    phone: '',
-    email: '',
-    address: ''
+  const router = useRouter();
+  const {
+    selectedPlan,
+    selectedDate,
+    selectedTime,
+    formData: contextFormData,
+    setFormData
+  } = useReservation();
+
+  const [formData, setLocalFormData] = useState({
+    name: contextFormData?.name || '',
+    furigana: contextFormData?.furigana || '',
+    gender: contextFormData?.gender || '',
+    birthdate: contextFormData?.birthdate || '',
+    age: contextFormData?.age || '',
+    phone: contextFormData?.phone || '',
+    email: contextFormData?.email || '',
+    address: contextFormData?.address || ''
   });
 
   const [errors, setErrors] = useState({
@@ -31,15 +41,20 @@ export default function ReserveStep2Page() {
     disclaimer: false
   });
 
+  useEffect(() => {
+    if (!selectedPlan || !selectedDate || !selectedTime) {
+      router.push('/reserve');
+    }
+  }, [selectedPlan, selectedDate, selectedTime, router]);
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // 生年月日が入力されたら年齢を自動計算
+    setLocalFormData(prev => ({ ...prev, [field]: value }));
+
     if (field === 'birthdate' && value) {
       const age = calculateAge(value);
-      setFormData(prev => ({ ...prev, birthdate: value, age: age.toString() }));
+      setLocalFormData(prev => ({ ...prev, birthdate: value, age: age.toString() }));
     }
-    
+
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -50,11 +65,11 @@ export default function ReserveStep2Page() {
     const birth = new Date(birthdate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
@@ -64,46 +79,55 @@ export default function ReserveStep2Page() {
 
   const validateForm = () => {
     const newErrors = { name: '', furigana: '', gender: '', birthdate: '', phone: '', address: '' };
-    
+
     if (!formData.name.trim()) newErrors.name = 'お名前を入力してください';
-    
+
     if (!formData.furigana.trim()) {
       newErrors.furigana = 'フリガナを入力してください';
     } else if (!/^[ァ-ヶー\s]+$/.test(formData.furigana)) {
       newErrors.furigana = 'カタカナで入力してください';
     }
-    
+
     if (!formData.gender) newErrors.gender = '性別を選択してください';
-    
+
     if (!formData.birthdate) {
       newErrors.birthdate = '生年月日を入力してください';
     }
-    
+
     if (!formData.phone.trim()) {
       newErrors.phone = '電話番号を入力してください';
     } else if (!/^[0-9\-]+$/.test(formData.phone)) {
       newErrors.phone = '正しい電話番号を入力してください';
     }
-    
+
     if (!formData.address.trim()) {
       newErrors.address = 'ご住所を入力してください';
     }
-    
+
     setErrors(newErrors);
     return !Object.values(newErrors).some(error => error !== '');
   };
 
   const handleNext = () => {
     if (validateForm() && consentChecked) {
-      // 実際の実装では router.push('/reserve/step3') を使用
-      alert('フォームが送信されました！次のステップへ進みます。');
-      console.log('Form data:', formData);
+      setFormData(formData);
+      router.push('/reserve/step3');
     }
   };
 
   const handleBack = () => {
-    // 実際の実装では router.push('/reserve') を使用
-    alert('前のステップに戻ります');
+    router.push('/reserve');
+  };
+
+  const getSelectedDateTime = () => {
+    if (selectedDate && selectedTime) {
+      const [month, day] = selectedDate.split('/');
+      const year = new Date().getFullYear();
+      const date = new Date(year, parseInt(month) - 1, parseInt(day));
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+      return `${year}年${month}月${day}日(${dayOfWeek}) ${selectedTime}`;
+    }
+    return '';
   };
 
   return (
@@ -118,62 +142,72 @@ export default function ReserveStep2Page() {
         <h1 className="text-center text-2xl font-bold mb-12">ご予約フォーム</h1>
 
         {/* ステップ表示 */}
-        <div className="flex justify-center items-center mb-12">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold">✓</div>
-            <div className="text-center ml-2 mr-8"><div className="text-sm font-medium text-gray-600">日時を選ぶ</div></div>
-            <div className="w-16 h-0.5 bg-gray-600 mx-4"></div>
-            <div className="w-12 h-12 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
-            <div className="text-center ml-2 mr-8"><div className="text-sm font-medium">お客様情報の入力</div></div>
-            <div className="w-16 h-0.5 bg-gray-300 mx-4"></div>
-            <div className="w-12 h-12 bg-gray-400 text-white rounded-full flex items-center justify-center font-bold">3</div>
-            <div className="text-center ml-2"><div className="text-sm font-medium text-gray-600">ご予約内容の確認</div></div>
+        <div className="flex justify-center items-center mb-12 overflow-x-auto">
+          <div className="flex items-center min-w-max">
+            <div className="w-10 h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-sm">✓</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium text-gray-600">日時選択</div></div>
+            <div className="w-12 h-0.5 bg-gray-600 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium">基本情報</div></div>
+            <div className="w-12 h-0.5 bg-gray-300 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-400 text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium text-gray-600">事前問診</div></div>
+            <div className="w-12 h-0.5 bg-gray-300 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-400 text-white rounded-full flex items-center justify-center font-bold text-sm">4</div>
+            <div className="text-center ml-1"><div className="text-xs font-medium text-gray-600">内容確認</div></div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-8">
           <div className="flex items-center mb-8">
             <div className="w-12 h-12 border-2 border-gray-400 rounded-full flex items-center justify-center font-bold text-gray-600">
-              2<span className="text-sm ml-1">/3</span>
+              2<span className="text-sm ml-1">/4</span>
             </div>
-            <h2 className="text-xl font-bold ml-4">お客様情報の入力</h2>
+            <h2 className="text-xl font-bold ml-4">基本情報の入力</h2>
           </div>
 
-          {/* お客様情報入力フォーム */}
+          {selectedPlan && selectedDate && selectedTime && (
+            <div className="mb-8 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-gray-800 mb-2">選択された内容</h3>
+              <p className="text-sm text-gray-600">プラン: {selectedPlan.display_name}</p>
+              <p className="text-sm text-gray-600">日時: {getSelectedDateTime()}</p>
+            </div>
+          )}
+
           <div className="mb-8">
             <h3 className="text-base font-semibold mb-4 text-gray-800">基本情報</h3>
-            
-            {/* お名前 */}
+
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 お名前<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
-              <input 
-                type="text" 
-                value={formData.name} 
+              <input
+                type="text"
+                value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 className={`w-full px-4 py-3 border rounded-md ${errors.name ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="山田太郎" 
+                placeholder="山田太郎"
               />
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
             </div>
 
-            {/* フリガナ */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 フリガナ<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
-              <input 
-                type="text" 
-                value={formData.furigana} 
+              <input
+                type="text"
+                value={formData.furigana}
                 onChange={(e) => handleInputChange('furigana', e.target.value)}
                 className={`w-full px-4 py-3 border rounded-md ${errors.furigana ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="ヤマダタロウ" 
+                placeholder="ヤマダタロウ"
               />
               {errors.furigana && <p className="mt-1 text-sm text-red-600">{errors.furigana}</p>}
             </div>
 
-            {/* 性別 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 性別<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
@@ -216,15 +250,14 @@ export default function ReserveStep2Page() {
               {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender}</p>}
             </div>
 
-            {/* 生年月日と年齢 */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   生年月日<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
                 </label>
-                <input 
-                  type="date" 
-                  value={formData.birthdate} 
+                <input
+                  type="date"
+                  value={formData.birthdate}
                   onChange={(e) => handleInputChange('birthdate', e.target.value)}
                   className={`w-full px-4 py-3 border rounded-md ${errors.birthdate ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
@@ -234,9 +267,9 @@ export default function ReserveStep2Page() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   年齢
                 </label>
-                <input 
-                  type="text" 
-                  value={formData.age ? `${formData.age}歳` : ''} 
+                <input
+                  type="text"
+                  value={formData.age ? `${formData.age}歳` : ''}
                   readOnly
                   className="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
                   placeholder="自動計算されます"
@@ -244,47 +277,44 @@ export default function ReserveStep2Page() {
               </div>
             </div>
 
-            {/* 電話番号 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 ご連絡先電話番号<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
-              <input 
-                type="tel" 
-                value={formData.phone} 
+              <input
+                type="tel"
+                value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 className={`w-full px-4 py-3 border rounded-md ${errors.phone ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="090-1234-5678" 
+                placeholder="090-1234-5678"
               />
               {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
             </div>
 
-            {/* メールアドレス */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 メールアドレス<span className="ml-2 px-2 py-1 bg-gray-400 text-white text-xs rounded">任意</span>
               </label>
-              <input 
-                type="email" 
-                value={formData.email} 
+              <input
+                type="email"
+                value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="example@email.com" 
+                placeholder="example@email.com"
               />
               <p className="mt-1 text-xs text-gray-500">※ 予約確認メールを受け取る場合は入力してください</p>
             </div>
 
-            {/* 住所 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 ご住所<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
-              <input 
-                type="text" 
-                value={formData.address} 
+              <input
+                type="text"
+                value={formData.address}
                 onChange={(e) => handleInputChange('address', e.target.value)}
                 className={`w-full px-4 py-3 border rounded-md ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="東京都渋谷区（市区町村まででも可）" 
+                placeholder="東京都渋谷区（市区町村まででも可）"
               />
               {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
               <p className="mt-1 text-xs text-gray-500">※ 市区町村まででも構いません</p>
@@ -298,7 +328,6 @@ export default function ReserveStep2Page() {
               ご予約前に以下の内容をご確認いただき、同意の上でご予約ください。
             </p>
 
-            {/* 施術に関する同意事項 */}
             <div className="border border-gray-300 rounded-lg mb-4">
               <button
                 onClick={() => toggleSection('treatment')}
@@ -319,7 +348,6 @@ export default function ReserveStep2Page() {
               )}
             </div>
 
-            {/* キャンセルポリシー */}
             <div className="border border-gray-300 rounded-lg mb-4">
               <button
                 onClick={() => toggleSection('cancellation')}
@@ -338,7 +366,6 @@ export default function ReserveStep2Page() {
               )}
             </div>
 
-            {/* 免責事項 */}
             <div className="border border-gray-300 rounded-lg mb-6">
               <button
                 onClick={() => toggleSection('disclaimer')}
@@ -358,7 +385,6 @@ export default function ReserveStep2Page() {
               )}
             </div>
 
-            {/* 同意チェックボックス */}
             <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
               <label className="flex items-start cursor-pointer">
                 <input
@@ -383,15 +409,14 @@ export default function ReserveStep2Page() {
             )}
           </div>
 
-          {/* ボタン */}
           <div className="flex justify-between">
-            <button 
-              onClick={handleBack} 
+            <button
+              onClick={handleBack}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
             >
               戻る
             </button>
-            <button 
+            <button
               onClick={handleNext}
               disabled={!consentChecked}
               className={`px-8 py-3 rounded-lg font-medium transition-colors ${
@@ -400,7 +425,7 @@ export default function ReserveStep2Page() {
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              ご予約内容の確認へ
+              事前問診へ
             </button>
           </div>
         </div>
