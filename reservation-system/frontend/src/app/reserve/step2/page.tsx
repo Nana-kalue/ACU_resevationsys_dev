@@ -6,15 +6,22 @@ export default function ReserveStep2Page() {
   
   const [formData, setFormData] = useState({
     name: '',
+    furigana: '',
+    gender: '',
+    birthdate: '',
+    age: '',
     phone: '',
     email: '',
-    notes: ''
+    address: ''
   });
 
   const [errors, setErrors] = useState({
     name: '',
+    furigana: '',
+    gender: '',
+    birthdate: '',
     phone: '',
-    email: ''
+    address: ''
   });
 
   const [consentChecked, setConsentChecked] = useState(false);
@@ -26,9 +33,29 @@ export default function ReserveStep2Page() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // 生年月日が入力されたら年齢を自動計算
+    if (field === 'birthdate' && value) {
+      const age = calculateAge(value);
+      setFormData(prev => ({ ...prev, birthdate: value, age: age.toString() }));
+    }
+    
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+  };
+
+  const calculateAge = (birthdate: string): number => {
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
   };
 
   const toggleSection = (section: 'treatment' | 'cancellation' | 'disclaimer') => {
@@ -36,12 +63,32 @@ export default function ReserveStep2Page() {
   };
 
   const validateForm = () => {
-    const newErrors = { name: '', phone: '', email: '' };
+    const newErrors = { name: '', furigana: '', gender: '', birthdate: '', phone: '', address: '' };
+    
     if (!formData.name.trim()) newErrors.name = 'お名前を入力してください';
-    if (!formData.phone.trim()) newErrors.phone = '電話番号を入力してください';
-    else if (!/^[0-9\-]+$/.test(formData.phone)) newErrors.phone = '正しい電話番号を入力してください';
-    if (!formData.email.trim()) newErrors.email = 'メールアドレスを入力してください';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = '正しいメールアドレスを入力してください';
+    
+    if (!formData.furigana.trim()) {
+      newErrors.furigana = 'フリガナを入力してください';
+    } else if (!/^[ァ-ヶー\s]+$/.test(formData.furigana)) {
+      newErrors.furigana = 'カタカナで入力してください';
+    }
+    
+    if (!formData.gender) newErrors.gender = '性別を選択してください';
+    
+    if (!formData.birthdate) {
+      newErrors.birthdate = '生年月日を入力してください';
+    }
+    
+    if (!formData.phone.trim()) {
+      newErrors.phone = '電話番号を入力してください';
+    } else if (!/^[0-9\-]+$/.test(formData.phone)) {
+      newErrors.phone = '正しい電話番号を入力してください';
+    }
+    
+    if (!formData.address.trim()) {
+      newErrors.address = 'ご住所を入力してください';
+    }
+    
     setErrors(newErrors);
     return !Object.values(newErrors).some(error => error !== '');
   };
@@ -94,6 +141,9 @@ export default function ReserveStep2Page() {
 
           {/* お客様情報入力フォーム */}
           <div className="mb-8">
+            <h3 className="text-base font-semibold mb-4 text-gray-800">基本情報</h3>
+            
+            {/* お名前 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 お名前<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
@@ -108,9 +158,96 @@ export default function ReserveStep2Page() {
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
             </div>
 
+            {/* フリガナ */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                電話番号<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
+                フリガナ<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
+              </label>
+              <input 
+                type="text" 
+                value={formData.furigana} 
+                onChange={(e) => handleInputChange('furigana', e.target.value)}
+                className={`w-full px-4 py-3 border rounded-md ${errors.furigana ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                placeholder="ヤマダタロウ" 
+              />
+              {errors.furigana && <p className="mt-1 text-sm text-red-600">{errors.furigana}</p>}
+            </div>
+
+            {/* 性別 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                性別<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="男性"
+                    checked={formData.gender === '男性'}
+                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                    className="mr-2 w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-gray-700">男性</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="女性"
+                    checked={formData.gender === '女性'}
+                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                    className="mr-2 w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-gray-700">女性</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="その他"
+                    checked={formData.gender === 'その他'}
+                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                    className="mr-2 w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-gray-700">その他</span>
+                </label>
+              </div>
+              {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender}</p>}
+            </div>
+
+            {/* 生年月日と年齢 */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  生年月日<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
+                </label>
+                <input 
+                  type="date" 
+                  value={formData.birthdate} 
+                  onChange={(e) => handleInputChange('birthdate', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-md ${errors.birthdate ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                />
+                {errors.birthdate && <p className="mt-1 text-sm text-red-600">{errors.birthdate}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  年齢
+                </label>
+                <input 
+                  type="text" 
+                  value={formData.age ? `${formData.age}歳` : ''} 
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                  placeholder="自動計算されます"
+                />
+              </div>
+            </div>
+
+            {/* 電話番号 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ご連絡先電話番号<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
               <input 
                 type="tel" 
@@ -122,31 +259,35 @@ export default function ReserveStep2Page() {
               {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
             </div>
 
+            {/* メールアドレス */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                メールアドレス<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
+                メールアドレス<span className="ml-2 px-2 py-1 bg-gray-400 text-white text-xs rounded">任意</span>
               </label>
               <input 
                 type="email" 
                 value={formData.email} 
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-md ${errors.email ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="example@email.com" 
               />
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              <p className="mt-1 text-xs text-gray-500">※ 予約確認メールを受け取る場合は入力してください</p>
             </div>
 
+            {/* 住所 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                ご要望<span className="ml-2 px-2 py-1 bg-gray-400 text-white text-xs rounded">任意</span>
+                ご住所<span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded">必須</span>
               </label>
-              <textarea 
-                value={formData.notes} 
-                onChange={(e) => handleInputChange('notes', e.target.value)} 
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="特に気になる部位や症状、痛み、お悩みなどがあればご記入ください" 
+              <input 
+                type="text" 
+                value={formData.address} 
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                className={`w-full px-4 py-3 border rounded-md ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                placeholder="東京都渋谷区（市区町村まででも可）" 
               />
+              {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
+              <p className="mt-1 text-xs text-gray-500">※ 市区町村まででも構いません</p>
             </div>
           </div>
 
