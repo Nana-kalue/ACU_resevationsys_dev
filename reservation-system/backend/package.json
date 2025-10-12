@@ -1,0 +1,41 @@
+{
+  "name": "reservation-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 3001",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "db:init": "psql $POSTGRES_URL -f ../database/migrations/001_initial_schema.sql && psql $POSTGRES_URL -f ../database/seeds/001_initial_data.sql",
+    "db:migrate": "bash ../database/scripts/migrate.sh",
+    "db:reset": "psql $POSTGRES_URL -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run db:init",
+    "db:setup": "npm run db:init",
+    "build:db": "npm run db:init"
+  },
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.15.5",
+    "@vercel/postgres": "^0.10.0",
+    "bcrypt": "^6.0.0",
+    "date-fns": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "next": "15.5.3",
+    "pg": "^8.16.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "resend": "^6.0.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
