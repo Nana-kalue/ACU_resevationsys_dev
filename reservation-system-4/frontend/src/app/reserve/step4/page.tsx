@@ -1,0 +1,283 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useReservation } from '@/contexts/ReservationContext';
+import { apiClient } from '@/lib/api';
+
+export default function ReserveStep4Page() {
+  const router = useRouter();
+  const {
+    selectedPlan,
+    selectedDate,
+    selectedTime,
+    formData,
+    questionnaireData,
+    getCompleteFormData,
+    resetReservation
+  } = useReservation();
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedPlan || !selectedDate || !selectedTime || !formData?.name) {
+      router.push('/reserve');
+    }
+  }, [selectedPlan, selectedDate, selectedTime, formData, router]);
+
+  const handleSubmit = async () => {
+    const completeFormData = getCompleteFormData();
+    if (!completeFormData) {
+      setError('必要な情報が不足しています');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.createReservation(completeFormData);
+
+      if (response.success && response.data?.reservationNumber) {
+        router.push(`/reserve/complete?reservationNumber=${response.data.reservationNumber}`);
+      } else {
+        setError(response.message || '予約の作成に失敗しました');
+      }
+    } catch (err) {
+      setError('ネットワークエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    router.push('/reserve/step3');
+  };
+
+  const handleStartOver = () => {
+    resetReservation();
+    router.push('/reserve');
+  };
+
+  const getSelectedDateTime = () => {
+    if (selectedDate && selectedTime) {
+      const [month, day] = selectedDate.split('/');
+      const year = new Date().getFullYear();
+      const date = new Date(year, parseInt(month) - 1, parseInt(day));
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+      return `${year}年${month}月${day}日(${dayOfWeek}) ${selectedTime}`;
+    }
+    return '';
+  };
+
+  const formatBirthdate = (birthdate: string) => {
+    if (!birthdate) return '';
+    const date = new Date(birthdate);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="text-center mb-8">
+          <div className="w-32 h-16 mx-auto bg-gray-200 rounded flex items-center justify-center">
+            <span className="text-gray-800 text-sm">LOGO</span>
+          </div>
+        </div>
+
+        <h1 className="text-center text-2xl font-bold mb-12 text-gray-900">ご予約フォーム</h1>
+
+        {/* ステップ表示 */}
+        <div className="flex justify-center items-center mb-12 overflow-x-auto">
+          <div className="flex items-center min-w-max">
+            <div className="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">✓</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium text-gray-900">日時選択</div></div>
+            <div className="w-12 h-0.5 bg-gray-700 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">✓</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium text-gray-900">基本情報</div></div>
+            <div className="w-12 h-0.5 bg-gray-700 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">✓</div>
+            <div className="text-center ml-1 mr-4"><div className="text-xs font-medium text-gray-900">事前問診</div></div>
+            <div className="w-12 h-0.5 bg-gray-700 mx-2"></div>
+
+            <div className="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">4</div>
+            <div className="text-center ml-1"><div className="text-xs font-medium text-gray-900">内容確認</div></div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="flex items-center mb-8">
+            <div className="w-12 h-12 border-2 border-gray-600 rounded-full flex items-center justify-center font-bold text-gray-900">
+              4<span className="text-sm ml-1">/4</span>
+            </div>
+            <h2 className="text-xl font-bold ml-4 text-gray-900">ご予約内容の確認</h2>
+          </div>
+
+          <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500">
+            <p className="text-sm text-gray-800">
+              以下の内容でよろしければ、「予約する」ボタンを押してください。<br />
+              修正が必要な場合は「戻る」ボタンで前の画面に戻れます。
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
+
+          {/* 予約内容確認 */}
+          <div className="space-y-8 mb-8">
+            {/* プランと日時 */}
+            <div className="border-b pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">予約内容</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">プラン</p>
+                  <p className="text-base font-medium text-gray-900">{selectedPlan?.display_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">日時</p>
+                  <p className="text-base font-medium text-gray-900">{getSelectedDateTime()}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 基本情報 */}
+            <div className="border-b pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">基本情報</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">お名前</p>
+                  <p className="text-base font-medium text-gray-900">{formData?.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">フリガナ</p>
+                  <p className="text-base font-medium text-gray-900">{formData?.furigana}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">性別</p>
+                  <p className="text-base font-medium text-gray-900">{formData?.gender}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">生年月日・年齢</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {formatBirthdate(formData?.birthdate || '')}（{formData?.age}歳）
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">電話番号</p>
+                  <p className="text-base font-medium text-gray-900">{formData?.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">メールアドレス</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {formData?.email || '未入力'}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-sm text-gray-700 mb-1">ご住所</p>
+                  <p className="text-base font-medium text-gray-900">{formData?.address}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 事前問診 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">事前問診</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-700 mb-1">現在の症状・気になる部位</p>
+                  <p className="text-base text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded">
+                    {questionnaireData?.symptoms || '未入力'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-700 mb-1">既往歴</p>
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded">
+                      {questionnaireData?.medicalHistory || '未入力'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700 mb-1">服用中の薬</p>
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded">
+                      {questionnaireData?.currentMedication || '未入力'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700 mb-1">アレルギー</p>
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded">
+                      {questionnaireData?.allergies || '未入力'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700 mb-1">妊娠の有無</p>
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded">
+                      {questionnaireData?.pregnancy || '未回答'}
+                    </p>
+                  </div>
+                </div>
+                {questionnaireData?.otherNotes && (
+                  <div>
+                    <p className="text-sm text-gray-700 mb-1">その他ご要望</p>
+                    <p className="text-base text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded">
+                      {questionnaireData.otherNotes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 最終確認 */}
+          <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="text-sm text-yellow-900">
+                <p className="font-semibold mb-1">最終確認</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>入力内容に誤りがないかご確認ください</li>
+                  <li>キャンセル・変更は2営業日前までにご連絡ください</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* ボタン */}
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <button
+              onClick={handleStartOver}
+              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              最初からやり直す
+            </button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={handleBack}
+                className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                戻る
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className={`px-8 py-3 rounded-lg font-medium transition-colors ${
+                  loading
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-black text-white hover:bg-gray-800'
+                }`}
+              >
+                {loading ? '送信中...' : '予約する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
